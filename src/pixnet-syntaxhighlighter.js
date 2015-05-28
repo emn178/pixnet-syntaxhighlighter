@@ -1,5 +1,5 @@
 /*
- * pixnet-syntaxhighlighter v0.1.0
+ * pixnet-syntaxhighlighter v0.2.0
  * https://github.com/emn178/pixnet-syntaxhighlighter
  *
  * Copyright 2015, emn178@gmail.com
@@ -10,56 +10,78 @@
 ;(function($, window, document, undefined) {
   'use strict';
 
-  var MAX_HISTORIES = 5;
+  var BRUSHES = {
+    'shBrushAS3.js': ['as3', 'actionscript3'],
+    'shBrushBash.js': ['bash', 'shell'],
+    'shBrushColdFusion.js': ['cf', 'coldfusion'],
+    'shBrushCSharp.js': ['c-sharp', 'csharp'],
+    'shBrushCpp.js': ['cpp', 'c'],
+    'shBrushCss.js': ['css'],
+    'shBrushDelphi.js': ['delphi', 'pas', 'pascal'],
+    'shBrushDiff.js': ['diff', 'patch'],
+    'shBrushErlang.js': ['erl', 'erlang'],
+    'shBrushGroovy.js': ['groovy'],
+    'shBrushJScript.js': ['js', 'jscript', 'javascript'],
+    'shBrushJava.js': ['java'],
+    'shBrushJavaFX.js': ['jfx', 'javafx'],
+    'shBrushPerl.js': ['perl', 'pl'],
+    'shBrushPhp.js': ['php'],
+    'shBrushPlain.js': ['plain', 'text'],
+    'shBrushPowerShell.js': ['ps', 'powershell'],
+    'shBrushPython.js': ['py', 'python'],
+    'shBrushRuby.js': ['rails', 'ror', 'ruby'],
+    'shBrushScala.js': ['scala'],
+    'shBrushSql.js': ['sql'],
+    'shBrushVb.js': ['vb', 'vbnet'],
+    'shBrushXml.js': ['xml', 'xhtml', 'xslt', 'html', 'xhtml']
+  };
 
-  var localStorage = window.localStorage || {};
-
-  var wrapper = $('<div></div>');
-  function createCodeBlock(language, code) {
-    wrapper.html($('<pre></pre>').addClass('brush: ' + language).text(code));
-    return wrapper.html();
-  }
-
-  function onSubmit() {
-    var language = elements.language.val();
-    var code = elements.code.val();
-    var data = createCodeBlock(language, code);
-    var ret = $.query.get('addon_id') + "||PIXNET||" + data;
-    windowProxy.postMessage(ret);
-    histories.unshift(language);
-    histories = $.unique(histories).reverse().slice(0, MAX_HISTORIES);
-    localStorage['histories'] = JSON.stringify(histories);
-    return false;
-  }
-
-  function onCancel() {
-    var ret = $.query.get('addon_id') + "||PIXNET||";
-    windowProxy.postMessage(ret);
-    return false;
-  }
-
-  function onClickHistories() {
-    elements.language.val($(this).text());
-  }
-
-  var windowProxy, elements = {}, histories;
-  $(document).ready(function() {
-    var proxy_url = $.query.get('proxy_url') + '?addon_id=' + $.query.get('addon_id') + '&pToken=' + $.query.get('pToken');
-    windowProxy = new Porthole.WindowProxy( proxy_url );
-
-    histories = jQuery.parseJSON(localStorage['histories'] || '[]');
-
-    elements.language = $('#language');
-    elements.language.val(histories[0]);
-    elements.code = $('#code');
-    elements.histories = $('#histories');
-
-    histories.forEach(function(language) {
-      elements.histories.append('<a href="#">' + language + '</a>');
+  var FILES = {};
+  for(var file in BRUSHES) {
+    $(BRUSHES[file]).each(function() {
+      FILES[this] = file;
     });
+  }
 
-    $('#form-html-code').on('submit', onSubmit);
-    $('#popup-cancel-btn').click(onCancel);
-    elements.histories.on('click', 'a', onClickHistories);
+  var cdn = 'https://cdnjs.cloudflare.com/ajax/libs/SyntaxHighlighter/3.0.83/';
+  function loadScript(file) {
+    return $.ajax({
+      url: cdn + file,
+      dataType: "script",
+      cache: true
+    });
+  }
+
+  $.extend({
+    pixSyntaxhighlighter: function (options) {
+      cdn = options.cdn || cdn;
+      var classes = [];
+      $('pre.brush\\:').each(function() {
+        $(this.classList).each(function() {
+          if(this == 'brush:') {
+            return;
+          }
+          classes.push(this);
+        });
+      });
+      $.unique(classes);
+
+      $('body').append('<link rel="stylesheet" type="text/css" href="' + cdn + 'styles/shCoreDefault.css">')
+
+      var deferred = $.Deferred();
+      deferred.resolve();
+      deferred = deferred.pipe( function() {
+        return loadScript('scripts/shCore.js');
+      });
+
+      $.each(classes, function(o, className) {
+        deferred = deferred.pipe(function() {
+          return loadScript('scripts/' + FILES[className]);
+        });
+      });
+      deferred.done(function() {
+        SyntaxHighlighter.all();
+      });
+    }
   });
 })(jQuery, window, document);
